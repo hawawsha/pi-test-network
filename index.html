@@ -1,46 +1,92 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>صفحة اختبار الـ 10 معاملات</title>
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #eee; }
-        .box { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        button { background: #673ab7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>اختبار معاملات Testnet - Pi</title>
+
+  <!-- Pi SDK -->
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      text-align: center;
+      padding-top: 60px;
+    }
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+      margin: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      font-size: 18px;
+      background: #6a1b9a;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="box">
-        <h3>تجربة دفع (Testnet)</h3>
-        <p>هذا المجلد معزول عن تطبيقك الأساسي</p>
-        <button id="payBtn">ادفع 1 Pi تجريبي</button>
-        <p id="status"></p>
-    </div>
-    <script>
-        Pi.init({ version: "2.0", sandbox: true });
-        document.getElementById("payBtn").onclick = async () => {
-            try {
-                const payment = await Pi.createPayment({
-                    amount: 1,
-                    memo: "Test Transaction",
-                    metadata: { type: "test" }
-                }, {
-                    onReadyForServerApproval: (paymentId) => {
-                        fetch("/api/approve", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ paymentId })
-                        });
-                    },
-                    onReadyForServerCompletion: (paymentId, txid) => {
-                        document.getElementById("status").innerText = "نجحت العملية!";
-                    },
-                    onCancel: (paymentId) => {},
-                    onError: (error) => { alert(error.message); }
-                });
-            } catch (e) { alert("افتحه من متصفح Pi"); }
-        };
-    </script>
+
+<div class="card">
+  <h2>اختبار 10 معاملات Testnet</h2>
+  <p>يجب فتح هذه الصفحة من داخل Pi Browser فقط</p>
+  <button id="payBtn">ادفع 1 Pi (Testnet)</button>
+  <div id="status">جاهز</div>
+</div>
+
+<script>
+  // تهيئة Pi SDK (بدون Sandbox)
+  Pi.init({
+    version: "2.0",
+    sandbox: false
+  });
+
+  document.getElementById("payBtn").onclick = async () => {
+    const status = document.getElementById("status");
+
+    try {
+      status.innerText = "جاري فتح المحفظة...";
+
+      await Pi.createPayment(
+        {
+          amount: 1,
+          memo: "Testnet App-to-User Transaction",
+          metadata: { purpose: "testnet" }
+        },
+        {
+          onReadyForServerCompletion: (paymentId, txid) => {
+            status.innerText = "✅ تمت العملية بنجاح";
+          },
+          onCancel: () => {
+            status.innerText = "❌ تم إلغاء العملية";
+          },
+          onError: (err) => {
+            status.innerText = "⚠️ خطأ: " + err.message;
+          }
+        }
+      );
+
+    } catch (e) {
+      alert("❌ افتح الصفحة من داخل Pi Browser فقط");
+    }
+  };
+</script>
+
 </body>
 </html>
