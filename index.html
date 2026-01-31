@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صفحة اختبار الـ 10 معاملات</title>
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #eee; }
+        .box { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        button { background: #673ab7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3>تجربة دفع (Testnet)</h3>
+        <p>هذا المجلد معزول عن تطبيقك الأساسي</p>
+        <button id="payBtn">ادفع 1 Pi تجريبي</button>
+        <p id="status"></p>
+    </div>
+    <script>
+        Pi.init({ version: "2.0", sandbox: true });
+        document.getElementById("payBtn").onclick = async () => {
+            try {
+                const payment = await Pi.createPayment({
+                    amount: 1,
+                    memo: "Test Transaction",
+                    metadata: { type: "test" }
+                }, {
+                    onReadyForServerApproval: (paymentId) => {
+                        fetch("/api/approve", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ paymentId })
+                        });
+                    },
+                    onReadyForServerCompletion: (paymentId, txid) => {
+                        document.getElementById("status").innerText = "نجحت العملية!";
+                    },
+                    onCancel: (paymentId) => {},
+                    onError: (error) => { alert(error.message); }
+                });
+            } catch (e) { alert("افتحه من متصفح Pi"); }
+        };
+    </script>
+</body>
+</html>
