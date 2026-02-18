@@ -36,7 +36,6 @@
     const status = document.getElementById("status");
     try {
       await initSDK();
-
       status.innerText = "🔹 بدء المصادقة...";
       await Pi.authenticate(['username']);
       status.innerText = "🔹 المصادقة ناجحة، جاري تنفيذ المعاملة...";
@@ -45,24 +44,12 @@
         amount: 1,
         memo: "اختبار Testnet",
         metadata: { purpose: "testnet_single" }
-      }, {
-        onReadyForServerApproval: (paymentId) => {
-          status.innerText = "🔹 في انتظار موافقة السيرفر...";
-          return fetch('/api/approve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paymentId })
-          });
-        },
-        onReadyForServerCompletion: (paymentId, txid) => {
-          status.innerText = "✅ تمت العملية بنجاح! TXID: " + txid;
-        },
-        onCancel: () => { status.innerText = "❌ تم إلغاء العملية"; },
-        onError: (err) => { status.innerText = "⚠️ فشل العملية: " + err.message; }
       });
 
+      status.innerText = "✅ تمت العملية بنجاح! TXID: " + payment.txid;
+
     } catch (err) {
-      status.innerText = "❌ خطأ: " + err.message;
+      status.innerText = "❌ فشل العملية: " + err.message;
     }
   };
 </script>
