@@ -23,7 +23,6 @@
 <script>
   let isInitialized = false;
 
-  // تهيئة SDK قبل أي عملية
   async function initSDK() {
     if (!isInitialized) {
       document.getElementById("status").innerText = "🔹 بدء تهيئة SDK...";
@@ -35,7 +34,6 @@
 
   document.getElementById("payBtn").onclick = async () => {
     const status = document.getElementById("status");
-
     try {
       await initSDK();
 
@@ -43,7 +41,6 @@
       await Pi.authenticate(['username']);
       status.innerText = "🔹 المصادقة ناجحة، جاري تنفيذ المعاملة...";
 
-      // تنفيذ معاملة واحدة
       const payment = await Pi.createPayment({
         amount: 1,
         memo: "اختبار Testnet",
