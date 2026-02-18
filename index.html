@@ -2,14 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>سوق Pi - 10 معاملات Testnet</title>
+  <title>سوق Pi - Testnet</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
     body { font-family: sans-serif; background: #f2f2f2; text-align: center; padding-top: 50px; }
     .card { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    button { background: #6a1b9a; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; margin-bottom: 10px; }
-    #status { margin-top: 20px; font-weight: bold; color: #333; text-align: left; white-space: pre-line; word-break: break-word; }
+    button { background: #6a1b9a; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; }
+    #status { margin-top: 20px; font-weight: bold; color: #333; }
   </style>
 </head>
 <body>
@@ -21,53 +20,38 @@
 </div>
 
 <script>
-  const status = document.getElementById("status");
-
-  function log(msg) {
-    status.innerText += "\n" + msg;
-  }
-
-  async function runPayments() {
-    try {
-      status.innerText = "🔹 بدء التهيئة...";
-      Pi.init({ version: "2.0", sandbox: true });
-
-      log("🔹 بدء المصادقة...");
-      const scopes = ['username'];
-      await Pi.authenticate(scopes, (auth) => {
-        log("✅ تم المصادقة بنجاح: " + JSON.stringify(auth));
-      });
-
-      log("🔹 سيتم تنفيذ 10 معاملات Testnet...");
-      for (let i = 1; i <= 10; i++) {
-        log(`\n💰 المعاملة رقم ${i} جاري تنفيذها...`);
-        await Pi.createPayment({
-          amount: 1,
-          memo: "اختبار معاملات التست نت",
-          metadata: { purpose: "testnet_10" }
-        }, {
-          onReadyForServerApproval: (paymentId) => {
-            log(`🔹 Payment ID جاهز: ${paymentId}`);
-            // إذا عندك approve endpoint يمكن الاتصال به هنا
-          },
-          onReadyForServerCompletion: (paymentId, txid) => {
-            log(`✅ المعاملة ${i} تمت! TXID: ${txid}`);
-          },
-          onCancel: () => log(`❌ المعاملة ${i} تم إلغاؤها`),
-          onError: (err) => log(`⚠️ خطأ في المعاملة ${i}: ${err.message}`)
-        });
-
-        // وقت قصير بين المعاملات لتجنب أي ضغط على SDK
-        await new Promise(r => setTimeout(r, 1500));
-      }
-
-      log("\n🎉 تم تنفيذ جميع المعاملات العشر بنجاح!");
-    } catch (e) {
-      log("❌ فشل الاتصال بالـ SDK أو Pi Browser: " + e.message);
+  let isInitialized = false;
+  async function initSDK() {
+    if (!isInitialized) {
+      await Pi.init({ version: "2.0", sandbox: true });
+      isInitialized = true;
+      document.getElementById("status").innerText = "🔹 SDK جاهز";
     }
   }
 
-  document.getElementById("payBtn").onclick = runPayments;
+  document.getElementById("payBtn").onclick = async () => {
+    const status = document.getElementById("status");
+    await initSDK();
+    try {
+      status.innerText = "🔹 بدء المصادقة...";
+      await Pi.authenticate(['username']);
+      status.innerText = "🔹 المصادقة ناجحة، جاري تنفيذ المعاملات...";
+
+      for (let i = 1; i <= 10; i++) {
+        status.innerText = `💰 تنفيذ المعاملة رقم ${i}...`;
+        await Pi.createPayment({
+          amount: 1,
+          memo: `اختبار Testnet ${i}`,
+          metadata: { purpose: "testnet_10" }
+        });
+        status.innerText = `✅ المعاملة رقم ${i} تمت!`;
+      }
+
+      status.innerText = "🎉 تم تنفيذ جميع المعاملات العشر بنجاح!";
+    } catch (err) {
+      status.innerText = "❌ فشل الاتصال بالـ SDK: " + err.message;
+    }
+  };
 </script>
 
 </body>
