@@ -21,35 +21,44 @@
 </div>
 
 <script>
-  let isInitialized = false;
+  // استخدم App ID الخاص بالتطبيق الذي أنشأناه سابقاً
+  const appId = "ضع_معرف_تطبيقك_هنا"; 
 
-  async function initSDK() {
-    if (!isInitialized) {
-      document.getElementById("status").innerText = "🔹 بدء تهيئة SDK...";
-      await Pi.init({ version: "2.0", sandbox: true });
-      isInitialized = true;
-      document.getElementById("status").innerText = "🔹 SDK جاهز";
-    }
-  }
+  // تهيئة النظام فور تحميل الصفحة
+  Pi.init({ version: "2.0", sandbox: true });
 
   document.getElementById("payBtn").onclick = async () => {
     const status = document.getElementById("status");
-    try {
-      await initSDK();
-      status.innerText = "🔹 بدء المصادقة...";
-      await Pi.authenticate(['username']);
-      status.innerText = "🔹 المصادقة ناجحة، جاري تنفيذ المعاملة...";
+    status.innerText = "⏳ جاري المصادقة...";
 
+    try {
+      // 1. المصادقة (Authentication)
+      const auth = await Pi.authenticate(['username', 'payments']);
+      status.innerText = "✅ أهلاً " + auth.user.username + "، جاري فتح المحفظة...";
+
+      // 2. إنشاء المعاملة (Payment)
       const payment = await Pi.createPayment({
         amount: 1,
-        memo: "اختبار Testnet",
-        metadata: { purpose: "testnet_single" }
+        memo: "اختبار العشر معاملات",
+        metadata: { purpose: "testnet_transaction" }
+      }, {
+        onReadyForServerApproval: (paymentId) => {
+          // بمجرد الوصول هنا، ستظهر لك نافذة Pi لإدخال كلمة سر المحفظة
+          status.innerText = "🔹 المعاملة جاهزة!\nID: " + paymentId + "\nأدخل كلمة سر محفظتك في النافذة التي ظهرت.";
+        },
+        onReadyForServerCompletion: (paymentId, txid) => {
+          status.innerText = "✅ نجحت المعاملة!\nTXID: " + txid;
+        },
+        onCancel: (paymentId) => {
+          status.innerText = "❌ تم إلغاء العملية من قبلك.";
+        },
+        onError: (error, payment) => {
+          status.innerText = "❌ خطأ فني: " + error.message;
+        }
       });
 
-      status.innerText = "✅ تمت العملية بنجاح! TXID: " + payment.txid;
-
     } catch (err) {
-      status.innerText = "❌ فشل العملية: " + err.message;
+      status.innerText = "❌ فشل النظام: " + err.message;
     }
   };
 </script>
