@@ -4,54 +4,43 @@
   <meta charset="UTF-8">
   <title>سوق Pi - Testnet</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-  <style>
-    body { font-family: sans-serif; background: #f2f2f2; text-align: center; padding-top: 50px; }
-    .card { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    button { background: #6a1b9a; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; }
-    #status { margin-top: 20px; font-weight: bold; color: #333; }
-  </style>
 </head>
-<body>
+<body style="font-family:sans-serif;text-align:center;margin-top:50px;">
 
-<div class="card">
-  <h2>سوق Pi (Testnet)</h2>
-  <button id="payBtn">ابدأ 10 معاملات تجريبية</button>
-  <div id="status">جاهز للاختبار</div>
-</div>
+<h2>سوق Pi (Testnet)</h2>
+<button onclick="start()">ابدأ 10 معاملات تجريبية</button>
+<p id="status">جاهز للاختبار</p>
 
 <script>
-  let isInitialized = false;
-  async function initSDK() {
-    if (!isInitialized) {
-      await Pi.init({ version: "2.0", sandbox: true });
-      isInitialized = true;
-      document.getElementById("status").innerText = "🔹 SDK جاهز";
+async function start() {
+  const status = document.getElementById("status");
+
+  try {
+    await Pi.init({ version: "2.0", sandbox: true });
+
+    status.innerText = "🔹 بدء المصادقة...";
+    
+    await Pi.authenticate(['username'], function(auth) {
+      console.log(auth);
+    });
+
+    status.innerText = "✅ المصادقة ناجحة";
+
+    for (let i = 1; i <= 10; i++) {
+      status.innerText = "💰 تنفيذ المعاملة رقم " + i;
+      await Pi.createPayment({
+        amount: 1,
+        memo: "Testnet " + i,
+        metadata: { test: true }
+      });
     }
+
+    status.innerText = "🎉 تم تنفيذ 10 معاملات بنجاح";
+
+  } catch (e) {
+    status.innerText = "❌ خطأ: " + e.message;
   }
-
-  document.getElementById("payBtn").onclick = async () => {
-    const status = document.getElementById("status");
-    await initSDK();
-    try {
-      status.innerText = "🔹 بدء المصادقة...";
-      await Pi.authenticate(['username']);
-      status.innerText = "🔹 المصادقة ناجحة، جاري تنفيذ المعاملات...";
-
-      for (let i = 1; i <= 10; i++) {
-        status.innerText = `💰 تنفيذ المعاملة رقم ${i}...`;
-        await Pi.createPayment({
-          amount: 1,
-          memo: `اختبار Testnet ${i}`,
-          metadata: { purpose: "testnet_10" }
-        });
-        status.innerText = `✅ المعاملة رقم ${i} تمت!`;
-      }
-
-      status.innerText = "🎉 تم تنفيذ جميع المعاملات العشر بنجاح!";
-    } catch (err) {
-      status.innerText = "❌ فشل الاتصال بالـ SDK: " + err.message;
-    }
-  };
+}
 </script>
 
 </body>
