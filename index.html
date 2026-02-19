@@ -3,93 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi App - Payment System</title>
+    <title>Pi Payment App</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
-<body style="text-align: center; font-family: sans-serif; padding-top: 50px; background-color: #f4f4f9;">
+<body style="text-align: center; font-family: Arial, sans-serif; padding-top: 50px; background-color: #f0f0f0;">
 
-    <div style="max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-        <h1 style="color: #673ab7;">Souq Pi</h1>
-        <p id="status" style="color: #555; font-weight: bold;">Initializing SDK...</p>
-        <hr style="border: 0.5px solid #eee; margin: 20px 0;">
+    <div style="max-width: 350px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+        <h2 style="color: #673ab7;">Pi Store</h2>
+        <p id="status" style="color: #888;">Checking Connection...</p>
+        <hr style="border: 0.5px solid #eee;">
         
-        <div id="payment-area" style="display: none;">
-            <p style="font-size: 18px;">Amount to Pay:</p>
-            <p style="font-size: 32px; color: #333; margin: 10px 0;"><strong>2.6 Pi</strong></p>
-            <button id="pay-button" style="width: 100%; padding: 15px; font-size: 18px; background-color: #673ab7; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
-                Pay Now
+        <div id="payment-box" style="display: none;">
+            <p>Item: Test Order</p>
+            <p style="font-size: 24px;"><strong>2.6 Pi</strong></p>
+            <button id="btn-pay" style="width: 100%; padding: 15px; background: #673ab7; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
+                PAY NOW
             </button>
         </div>
     </div>
 
     <script>
-        const statusElement = document.getElementById('status');
-        const paymentArea = document.getElementById('payment-area');
-        const payButton = document.getElementById('pay-button');
+        const status = document.getElementById('status');
+        const box = document.getElementById('payment-box');
+        const btn = document.getElementById('btn-pay');
 
-        // Initialize Pi SDK
+        // أهم سطر: sandbox: true
         Pi.init({ version: "2.0", sandbox: true });
 
-        async function authenticateUser() {
+        async function startApp() {
             try {
-                const scopes = ['payments', 'username'];
-                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                const auth = await Pi.authenticate(['payments', 'username'], (payment) => {
+                    console.log("Incomplete payment found");
+                });
                 
-                statusElement.innerText = "Welcome, " + auth.user.username;
-                statusElement.style.color = "green";
-                paymentArea.style.display = "block";
+                status.innerText = "Connected: " + auth.user.username;
+                status.style.color = "green";
+                box.style.display = "block";
             } catch (err) {
-                statusElement.innerText = "Authentication failed: " + err.message;
-                statusElement.style.color = "red";
+                status.innerText = "Please open in Pi Browser";
+                status.style.color = "red";
             }
         }
 
-        async function createPayment() {
+        async function handlePayment() {
             try {
-                statusElement.innerText = "Processing payment...";
-                
                 const payment = await Pi.createPayment({
                     amount: 2.6,
-                    memo: "Test Transaction 2.6 Pi",
-                    metadata: { orderId: "TEST_101" }
+                    memo: "Testing 2.6 Pi Payment",
+                    metadata: { orderId: "order_123" }
                 }, {
-                    onReadyForServerApproval: function(paymentId) {
+                    onReadyForServerApproval: (id) => {
                         return fetch('/api/approve', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId })
+                            body: JSON.stringify({ paymentId: id })
                         });
                     },
-                    onReadyForServerCompletion: function(paymentId, txid) {
+                    onReadyForServerCompletion: (id, txid) => {
                         return fetch('/api/complete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId, txid })
+                            body: JSON.stringify({ paymentId: id, txid: txid })
                         });
                     },
-                    onCancel: function(paymentId) {
-                        statusElement.innerText = "Payment Cancelled.";
-                        statusElement.style.color = "orange";
-                    },
-                    onError: function(error, payment) {
-                        statusElement.innerText = "Payment Error: " + error.message;
-                        statusElement.style.color = "red";
-                    }
+                    onCancel: () => { alert("Payment Cancelled"); },
+                    onError: (err) => { alert("Error: " + err.message); }
                 });
-
-                statusElement.innerText = "Success! Payment Completed.";
-                statusElement.style.color = "blue";
-            } catch (err) {
-                statusElement.innerText = "Execution failed: " + err.message;
+            } catch (e) {
+                console.error(e);
             }
         }
 
-        function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found:", payment);
-        };
-
-        payButton.onclick = createPayment;
-        window.onload = authenticateUser;
+        btn.onclick = handlePayment;
+        window.onload = startApp;
     </script>
 </body>
 </html>
