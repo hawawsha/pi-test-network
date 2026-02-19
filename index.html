@@ -1,75 +1,95 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Souq Pi - Manual Payment</title>
+    <title>Pi App - Payment System</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
-<body style="text-align: center; font-family: sans-serif; padding-top: 50px; background-color: #f8f9fa;">
+<body style="text-align: center; font-family: sans-serif; padding-top: 50px; background-color: #f4f4f9;">
 
-    <div style="max-width: 400px; margin: auto; padding: 20px; border-radius: 15px; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #673ab7;">متجر الحواوشي</h2>
-        <p id="status" style="color: #666;">جاري تجهيز الاتصال بالشبكة...</p>
-        <hr>
-        <p>المبلغ المطلوب للدفع هو: <strong>2.6 Pi</strong></p>
+    <div style="max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <h1 style="color: #673ab7;">Souq Pi</h1>
+        <p id="status" style="color: #555; font-weight: bold;">Initializing SDK...</p>
+        <hr style="border: 0.5px solid #eee; margin: 20px 0;">
         
-        <button id="pay-button" style="display: none; padding: 15px; width: 100%; background: #673ab7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px;">
-            اضغط هنا لدفع 2.6 Pi
-        </button>
+        <div id="payment-area" style="display: none;">
+            <p style="font-size: 18px;">Amount to Pay:</p>
+            <p style="font-size: 32px; color: #333; margin: 10px 0;"><strong>2.6 Pi</strong></p>
+            <button id="pay-button" style="width: 100%; padding: 15px; font-size: 18px; background-color: #673ab7; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
+                Pay Now
+            </button>
+        </div>
     </div>
 
     <script>
         const statusElement = document.getElementById('status');
+        const paymentArea = document.getElementById('payment-area');
         const payButton = document.getElementById('pay-button');
 
-        // 1. تهيئة النظام (فقط تهيئة دون دفع)
-        try {
-            Pi.init({ version: "2.0", sandbox: true });
-            
-            // تسجيل الدخول أولاً لإظهار الزر
-            Pi.authenticate(['payments', 'username'], function(payment) {
-                // معالجة المدفوعات غير المكتملة إذا وجدت
-            }).then(function(auth) {
-                statusElement.innerText = "متصل الآن: " + auth.user.username;
-                statusElement.style.color = "green";
-                payButton.style.display = "block"; // الزر يظهر فقط هنا
-            }).catch(function(error) {
-                statusElement.innerText = "فشل تسجيل الدخول: " + error.message;
-            });
-        } catch (e) {
-            statusElement.innerText = "خطأ في تحميل المكتبة";
-        }
+        // Initialize Pi SDK
+        Pi.init({ version: "2.0", sandbox: true });
 
-        // 2. وظيفة الدفع (مفصولة تماماً) - لن تعمل إلا عند click
-        async function runPaymentProcess() {
-            statusElement.innerText = "جاري فتح المحفظة، يرجى الانتظار...";
-            
+        async function authenticateUser() {
             try {
-                const payment = await Pi.createPayment({
-                    amount: 2.6,
-                    memo: "دفع تجريبي 2.6",
-                    metadata: { orderId: "manual_26" }
-                }, {
-                    onReadyForServerApproval: function(paymentId) {
-                        return fetch('/api/approve', { method: 'POST', body: JSON.stringify({ paymentId }) });
-                    },
-                    onReadyForServerCompletion: function(paymentId, txid) {
-                        return fetch('/api/complete', { method: 'POST', body: JSON.stringify({ paymentId, txid }) });
-                    },
-                    onCancel: function(paymentId) { statusElement.innerText = "تم إلغاء الدفع."; },
-                    onError: function(error) { statusElement.innerText = "خطأ أثناء الدفع."; }
-                });
+                const scopes = ['payments', 'username'];
+                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
                 
-                statusElement.innerText = "تمت العملية بنجاح!";
+                statusElement.innerText = "Welcome, " + auth.user.username;
+                statusElement.style.color = "green";
+                paymentArea.style.display = "block";
             } catch (err) {
-                statusElement.innerText = "حدث خطأ: " + err.message;
+                statusElement.innerText = "Authentication failed: " + err.message;
+                statusElement.style.color = "red";
             }
         }
 
-        // ربط الوظيفة بالزر (تأكيد أن التشغيل يدوي فقط)
-        payButton.onclick = runPaymentProcess;
+        async function createPayment() {
+            try {
+                statusElement.innerText = "Processing payment...";
+                
+                const payment = await Pi.createPayment({
+                    amount: 2.6,
+                    memo: "Test Transaction 2.6 Pi",
+                    metadata: { orderId: "TEST_101" }
+                }, {
+                    onReadyForServerApproval: function(paymentId) {
+                        return fetch('/api/approve', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId })
+                        });
+                    },
+                    onReadyForServerCompletion: function(paymentId, txid) {
+                        return fetch('/api/complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId, txid })
+                        });
+                    },
+                    onCancel: function(paymentId) {
+                        statusElement.innerText = "Payment Cancelled.";
+                        statusElement.style.color = "orange";
+                    },
+                    onError: function(error, payment) {
+                        statusElement.innerText = "Payment Error: " + error.message;
+                        statusElement.style.color = "red";
+                    }
+                });
 
+                statusElement.innerText = "Success! Payment Completed.";
+                statusElement.style.color = "blue";
+            } catch (err) {
+                statusElement.innerText = "Execution failed: " + err.message;
+            }
+        }
+
+        function onIncompletePaymentFound(payment) {
+            console.log("Incomplete payment found:", payment);
+        };
+
+        payButton.onclick = createPayment;
+        window.onload = authenticateUser;
     </script>
 </body>
 </html>
