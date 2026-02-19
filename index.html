@@ -1,91 +1,110 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi App - Final Fix</title>
+    <title>Pi Payment Store</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
-<body style="text-align: center; font-family: sans-serif; padding-top: 50px; background: #f9f9f9;">
+<body style="text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding-top: 50px;">
 
-    <div style="max-width: 350px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-        <h2 style="color: #673ab7;">Pi Store</h2>
-        <p id="status" style="color: #666;">🔄 Loading Pi SDK...</p>
-        <hr style="border: 0.5px solid #eee;">
+    <div style="max-width: 380px; margin: auto; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.15);">
+        <h2 style="color: #673ab7; margin-bottom: 10px;">متجر Pi التجريبي</h2>
+        <div id="status-container" style="margin-bottom: 20px;">
+            <p id="status" style="color: #efa929; font-weight: bold;">🔄 جاري فحص الاتصال بـ Pi...</p>
+        </div>
         
-        <div id="payment-box" style="display: none;">
-            <p style="font-size: 18px;">Total: <strong>2.6 Pi</strong></p>
-            <button id="pay-button" style="width: 100%; padding: 15px; background: #673ab7; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
-                CONFIRM PAYMENT
+        <div id="payment-box" style="display: none; border-top: 2px solid #eee; pt-20px">
+            <p style="font-size: 1.2rem; color: #333;">قيمة الطلب</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #673ab7; margin: 10px 0;">2.6 Pi</p>
+            <button id="btn-pay" style="width: 100%; padding: 18px; background-color: #673ab7; color: white; border: none; border-radius: 15px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s;">
+                دفع الآن (Testnet)
             </button>
         </div>
     </div>
 
     <script>
-        const statusStatus = document.getElementById('status');
+        const statusText = document.getElementById('status');
         const paymentBox = document.getElementById('payment-box');
-        const payBtn = document.getElementById('pay-button');
+        const payBtn = document.getElementById('btn-pay');
 
-        // 1. دالة بدء التطبيق (نصيحة صديقك)
-        function startApp() {
+        // بدء تشغيل التطبيق فور تحميل المكتبة
+        function initPi() {
             if (typeof Pi !== 'undefined') {
-                statusStatus.innerText = "⌛ Authenticating...";
-                Pi.init({ version: "2.0", sandbox: true });
-                authenticate();
+                try {
+                    Pi.init({ version: "2.0", sandbox: true });
+                    console.log("Pi SDK Initialized");
+                    authenticateUser();
+                } catch (e) {
+                    statusText.innerText = "خطأ في تهيئة المكتبة";
+                }
             } else {
-                statusStatus.innerText = "❌ SDK Not Found!";
+                statusText.innerText = "لم يتم العثور على مكتبة Pi";
             }
         }
 
-        // 2. التحقق من تحميل السكريبت (نصيحة صديقك)
-        const script = document.querySelector('script[src="https://sdk.minepi.com/pi-sdk.js"]');
-        if (script) {
-            script.addEventListener('load', startApp);
-            script.addEventListener('error', () => {
-                statusStatus.innerText = "❌ Failed to load SDK. Check Internet.";
-            });
-        }
-
-        // 3. دالة تسجيل الدخول
-        async function authenticate() {
+        async function authenticateUser() {
             try {
-                const auth = await Pi.authenticate(['payments', 'username'], (payment) => {
-                    console.log("Incomplete payment:", payment);
-                });
-                statusStatus.innerText = "Welcome, " + auth.user.username;
-                statusStatus.style.color = "green";
-                paymentBox.style.display = "block";
+                // طلب تسجيل الدخول (مع تحديد الصلاحيات المطلوبة)
+                const auth = await Pi.authenticate(['payments', 'username'], onIncompletePayment);
+                statusText.innerText = "أهلاً بك: " + auth.user.username;
+                statusText.style.color = "#4CAF50";
+                paymentBox.style.display = "block"; // إظهار صندوق الدفع
             } catch (err) {
-                statusStatus.innerText = "Auth Error: " + err.message;
-                statusStatus.style.color = "red";
+                console.error(err);
+                statusText.innerText = "يرجى الفتح من متصفح Pi فقط";
+                statusText.style.color = "#f44336";
+                // حركة ذكية: إظهار الزر حتى لو فشل التعرف مؤقتاً للتجربة
+                paymentBox.style.display = "block";
             }
         }
 
-        // 4. دالة الدفع مع الباك-إند (المفاتيح اللي في جيبك)
+        async function onIncompletePayment(payment) {
+            console.log("هناك عملية معلقة:", payment);
+        }
+
         payBtn.onclick = async () => {
+            statusText.innerText = "جاري تحضير الدفع...";
             try {
-                await Pi.createPayment({
+                const payment = await Pi.createPayment({
                     amount: 2.6,
-                    memo: "Test Purchase 2.6 Pi",
-                    metadata: { orderId: "12345" }
+                    memo: "شراء منتج تجريبي - 2.6 Pi",
+                    metadata: { orderId: "invoice_" + Date.now() }
                 }, {
-                    onReadyForServerApproval: (id) => fetch('/api/approve', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: id })
-                    }),
-                    onReadyForServerCompletion: (id, txid) => fetch('/api/complete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: id, txid: txid })
-                    }),
-                    onCancel: () => alert("Payment Cancelled"),
-                    onError: (err) => alert("Payment Error: " + err.message)
+                    onReadyForServerApproval: async (id) => {
+                        console.log("Server Approval for ID:", id);
+                        const res = await fetch('/api/approve', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId: id })
+                        });
+                        return res.json();
+                    },
+                    onReadyForServerCompletion: async (id, txid) => {
+                        console.log("Server Completion for ID:", id);
+                        const res = await fetch('/api/complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId: id, txid: txid })
+                        });
+                        return res.json();
+                    },
+                    onCancel: () => {
+                        statusText.innerText = "تم إلغاء الدفع";
+                        statusText.style.color = "#efa929";
+                    },
+                    onError: (err) => {
+                        alert("حدث خطأ: " + err.message);
+                        statusText.innerText = "فشل الدفع";
+                    }
                 });
             } catch (e) {
-                console.error("Payment failed", e);
+                console.error(e);
             }
         };
+
+        // تشغيل الكود فور جاهزية الصفحة
+        window.onload = initPi;
     </script>
 </body>
 </html>
