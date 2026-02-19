@@ -1,66 +1,105 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوق Pi - Testnet</title>
+    <title>Souq Pi - Payment 2.6</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
-<body style="text-align:center; padding-top:50px; font-family:sans-serif;">
+<body style="text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-top: 50px; background-color: #f4f4f9;">
 
-    <div style="background:white; padding:20px; border-radius:15px; display:inline-block; border:1px solid #ccc;">
-        <h2>اختبار الـ 10 معاملات</h2>
-        <button id="payBtn" style="padding:15px 30px; background:#673ab7; color:white; border:none; border-radius:10px; cursor:pointer; font-size:18px;">
-            دفع 1 Pi (تجريبي)
+    <div style="max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <h1 style="color: #673ab7;">سوق Pi التجريبي</h1>
+        <p id="status" style="color: #555; font-weight: bold;">جاري التحقق من الاتصال بالشبكة...</p>
+        <hr style="border: 0.5px solid #eee;">
+        
+        <div id="user-info" style="margin: 20px 0; display: none;">
+            <p>مرحباً بك في نظام الاختبار</p>
+            <p style="font-size: 24px; color: #333;">المطلوب: <strong>2.6 Pi</strong></p>
+        </div>
+
+        <button id="pay-button" style="padding: 15px 30px; font-size: 18px; background-color: #673ab7; color: white; border: none; border-radius: 8px; cursor: pointer; display: none; width: 100%; font-weight: bold;">
+            تأكيد دفع 2.6 Pi (Testnet)
         </button>
-        <p id="status" style="margin-top:20px; color:#555;">الحالة: جاهز</p>
     </div>
 
     <script>
-        // المعرف الخاص بك الذي أعطيتني إياه
-        const appId = "fluuzu5hhjlafmahe7uhbjv40qu8lbiqjp6vxbfpcumdvvo0fnezrkywfpkqcyvs";
+        const statusElement = document.getElementById('status');
+        const payButton = document.getElementById('pay-button');
+        const userInfo = document.getElementById('user-info');
 
-        // تشغيل النظام
-        try {
-            Pi.init({ version: "2.0", sandbox: true });
-            console.log("Pi SDK initialized");
-        } catch (err) {
-            document.getElementById("status").innerText = "خطأ في تشغيل SDK";
+        // 1. تهيئة الـ SDK لبيئة الاختبار (Sandbox)
+        Pi.init({ version: "2.0", sandbox: true });
+
+        async function authUser() {
+            try {
+                const scopes = ['payments', 'username'];
+                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                
+                statusElement.innerText = "تم الاتصال بنجاح: " + auth.user.username;
+                statusElement.style.color = "green";
+                userInfo.style.display = "block";
+                payButton.style.display = "block"; 
+            } catch (err) {
+                statusElement.innerText = "فشل الاتصال: " + err.message;
+                statusElement.style.color = "red";
+                console.error("Auth Error:", err);
+            }
         }
 
-        document.getElementById("payBtn").onclick = async function() {
-            const statusLabel = document.getElementById("status");
-            statusLabel.innerText = "⏳ جاري محاولة الاتصال بالشبكة...";
-
+        // 2. معالج عملية الدفع بمبلغ 2.6 Pi
+        async function transferPi() {
             try {
-                // الطريقة المحدثة للمصادقة لتجنب التعليق
-                const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+                statusElement.innerText = "جاري فتح محفظة التست نت...";
                 
-                statusLabel.innerText = "✅ تم الاتصال بـ: " + auth.user.username;
-
-                // إنشاء المعاملة
                 const payment = await Pi.createPayment({
-                    amount: 1,
-                    memo: "Test Transaction",
-                    metadata: { orderId: 123 }
+                    amount: 2.6, // المبلغ المطلوب بدقة
+                    memo: "شراء تجريبي بمبلغ 2.6 Pi",
+                    metadata: { orderId: "ORDER_260" }
                 }, {
                     onReadyForServerApproval: function(paymentId) {
-                        statusLabel.innerText = "🔹 العملية جاهزة! ID: " + paymentId;
+                        statusElement.innerText = "بانتظار موافقة السيرفر (Approve)...";
+                        return fetch('/api/approve', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId })
+                        });
                     },
                     onReadyForServerCompletion: function(paymentId, txid) {
-                        statusLabel.innerText = "✅ نجحت المعاملة! TXID: " + txid;
+                        statusElement.innerText = "جاري تسجيل المعاملة (Complete)...";
+                        return fetch('/api/complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId, txid })
+                        });
                     },
-                    onCancel: function(paymentId) { statusLabel.innerText = "❌ تم الإلغاء"; },
-                    onError: function(error, payment) { statusLabel.innerText = "❌ خطأ: " + error.message; }
+                    onCancel: function(paymentId) {
+                        statusElement.innerText = "تم إلغاء عملية الدفع.";
+                        statusElement.style.color = "orange";
+                    },
+                    onError: function(error, payment) {
+                        statusElement.innerText = "حدث خطأ تقني في الدفع.";
+                        statusElement.style.color = "red";
+                        console.error("Payment Error:", error);
+                    }
                 });
+                
+                statusElement.innerText = "نجحت العملية! تم خصم 2.6 Pi من التست نت.";
+                statusElement.style.color = "blue";
             } catch (err) {
-                statusLabel.innerText = "❌ فشل: " + err.message;
+                statusElement.innerText = "خطأ في تنفيذ الطلب: " + err.message;
             }
+        }
+
+        // التعامل مع أي عمليات معلقة سابقاً لضمان عدم التعليق
+        function onIncompletePaymentFound(payment) {
+            console.log("وجدنا معاملة معلقة، يرجى مراجعة السيرفر لإكمالها:", payment);
         };
 
-        function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found", payment);
-        };
+        payButton.onclick = transferPi;
+        
+        // بدء المصادقة تلقائياً
+        window.onload = authUser;
     </script>
 </body>
 </html>
