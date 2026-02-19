@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         const { paymentId } = body;
-        const API_KEY = "kwtdjnpv1azajylzrz6pjfon54rz7ifcnbcibrfskpocqn3aueys8awylsao4w8x"; 
+        const API_KEY = "dspq2qhhpfv90nazmoerphcdvji9iwdllscf3hjrknpnpby4uxeczp48c5doqkhn"; 
 
         const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
             method: 'POST',
