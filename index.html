@@ -3,108 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Payment Store</title>
+    <title>تطبيق التجربة</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
-<body style="text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding-top: 50px;">
-
-    <div style="max-width: 380px; margin: auto; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.15);">
-        <h2 style="color: #673ab7; margin-bottom: 10px;">متجر Pi التجريبي</h2>
-        <div id="status-container" style="margin-bottom: 20px;">
-            <p id="status" style="color: #efa929; font-weight: bold;">🔄 جاري فحص الاتصال بـ Pi...</p>
-        </div>
-        
-        <div id="payment-box" style="display: none; border-top: 2px solid #eee; pt-20px">
-            <p style="font-size: 1.2rem; color: #333;">قيمة الطلب</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #673ab7; margin: 10px 0;">2.6 Pi</p>
-            <button id="btn-pay" style="width: 100%; padding: 18px; background-color: #673ab7; color: white; border: none; border-radius: 15px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s;">
-                دفع الآن (Testnet)
-            </button>
-        </div>
-    </div>
+<body style="text-align: center; padding-top: 50px; font-family: sans-serif;">
+    <h2>متجر الاختبار الجديد</h2>
+    <p id="status">جاري التحميل...</p>
+    <button id="pay-btn" style="display:none; padding: 20px; background: purple; color: white; border-radius: 10px;">
+        دفع 2.6 Pi (Testnet)
+    </button>
 
     <script>
-        const statusText = document.getElementById('status');
-        const paymentBox = document.getElementById('payment-box');
-        const payBtn = document.getElementById('btn-pay');
+        // تهيئة فورية
+        Pi.init({ version: "2.0", sandbox: true });
 
-        // بدء تشغيل التطبيق فور تحميل المكتبة
-        function initPi() {
-            if (typeof Pi !== 'undefined') {
-                try {
-                    Pi.init({ version: "2.0", sandbox: true });
-                    console.log("Pi SDK Initialized");
-                    authenticateUser();
-                } catch (e) {
-                    statusText.innerText = "خطأ في تهيئة المكتبة";
-                }
-            } else {
-                statusText.innerText = "لم يتم العثور على مكتبة Pi";
-            }
-        }
-
-        async function authenticateUser() {
+        async function start() {
             try {
-                // طلب تسجيل الدخول (مع تحديد الصلاحيات المطلوبة)
-                const auth = await Pi.authenticate(['payments', 'username'], onIncompletePayment);
-                statusText.innerText = "أهلاً بك: " + auth.user.username;
-                statusText.style.color = "#4CAF50";
-                paymentBox.style.display = "block"; // إظهار صندوق الدفع
-            } catch (err) {
-                console.error(err);
-                statusText.innerText = "يرجى الفتح من متصفح Pi فقط";
-                statusText.style.color = "#f44336";
-                // حركة ذكية: إظهار الزر حتى لو فشل التعرف مؤقتاً للتجربة
-                paymentBox.style.display = "block";
-            }
-        }
-
-        async function onIncompletePayment(payment) {
-            console.log("هناك عملية معلقة:", payment);
-        }
-
-        payBtn.onclick = async () => {
-            statusText.innerText = "جاري تحضير الدفع...";
-            try {
-                const payment = await Pi.createPayment({
-                    amount: 2.6,
-                    memo: "شراء منتج تجريبي - 2.6 Pi",
-                    metadata: { orderId: "invoice_" + Date.now() }
-                }, {
-                    onReadyForServerApproval: async (id) => {
-                        console.log("Server Approval for ID:", id);
-                        const res = await fetch('/api/approve', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId: id })
-                        });
-                        return res.json();
-                    },
-                    onReadyForServerCompletion: async (id, txid) => {
-                        console.log("Server Completion for ID:", id);
-                        const res = await fetch('/api/complete', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId: id, txid: txid })
-                        });
-                        return res.json();
-                    },
-                    onCancel: () => {
-                        statusText.innerText = "تم إلغاء الدفع";
-                        statusText.style.color = "#efa929";
-                    },
-                    onError: (err) => {
-                        alert("حدث خطأ: " + err.message);
-                        statusText.innerText = "فشل الدفع";
-                    }
-                });
+                const auth = await Pi.authenticate(['payments', 'username'], (p) => {});
+                document.getElementById('status').innerText = "مرحباً " + auth.user.username;
+                document.getElementById('pay-btn').style.display = "inline-block";
             } catch (e) {
-                console.error(e);
+                document.getElementById('status').innerText = "خطأ في الاتصال - تأكدي من الرابط";
+                // إظهار الزر رغم الخطأ لفحص قوة الربط
+                document.getElementById('pay-btn').style.display = "inline-block";
             }
+        }
+        
+        document.getElementById('pay-btn').onclick = async () => {
+            // هنا نضع كود createPayment الذي استخدمناه سابقاً
         };
 
-        // تشغيل الكود فور جاهزية الصفحة
-        window.onload = initPi;
+        window.onload = start;
     </script>
 </body>
 </html>
